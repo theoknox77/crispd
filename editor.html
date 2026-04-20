@@ -377,6 +377,86 @@
   .process-step.active span { color: var(--accent); }
   .process-step span { color: var(--muted2); }
 
+  /* Before/After player */
+  .compare-panel {
+    display: none;
+    gap: 12px;
+    margin-bottom: 0;
+  }
+
+  .compare-panel.visible { display: grid; grid-template-columns: 1fr 1fr; }
+
+  .audio-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .audio-card.clean { border-color: var(--border-accent); }
+
+  .audio-card-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .audio-card.original .audio-card-label { color: var(--muted); }
+  .audio-card.clean .audio-card-label { color: var(--accent); }
+
+  .audio-card audio {
+    width: 100%;
+    height: 36px;
+    outline: none;
+  }
+
+  /* Style the audio player */
+  audio::-webkit-media-controls-panel { background: var(--bg2); }
+
+  .audio-mini-wave {
+    display: flex;
+    align-items: center;
+    gap: 1.5px;
+    height: 28px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .amw-bar {
+    flex: 1;
+    border-radius: 1px;
+  }
+
+  .play-btn {
+    width: 100%;
+    padding: 8px;
+    border-radius: 7px;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: opacity 0.15s;
+  }
+
+  .audio-card.original .play-btn {
+    background: var(--bg2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .audio-card.clean .play-btn {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .play-btn:hover { opacity: 0.85; }
+
   /* Done state */
   .done-panel {
     background: var(--bg2);
@@ -807,25 +887,25 @@
         </div>
       </div>
 
+      <!-- Before/After compare -->
+      <div class="compare-panel" id="comparePanel">
+        <div class="audio-card original">
+          <div class="audio-card-label">▶ Original</div>
+          <div class="audio-mini-wave" id="origWave"></div>
+          <audio id="audioOriginal" controls></audio>
+        </div>
+        <div class="audio-card clean">
+          <div class="audio-card-label">✦ Cleaned</div>
+          <div class="audio-mini-wave" id="cleanWave"></div>
+          <audio id="audioCleaned" controls></audio>
+        </div>
+      </div>
+
       <!-- Done -->
       <div class="done-panel" id="donePanel">
         <div class="done-icon">✓</div>
         <h3>Your audio is ready</h3>
-        <p>Clean, broadcast-ready audio — processed and waiting.</p>
-        <div class="done-stats">
-          <div class="done-stat">
-            <strong id="statFillers">—</strong>
-            <span>Fillers removed</span>
-          </div>
-          <div class="done-stat">
-            <strong id="statSilence">—</strong>
-            <span>Silence cut</span>
-          </div>
-          <div class="done-stat">
-            <strong id="statSize">—</strong>
-            <span>Size saved</span>
-          </div>
-        </div>
+        <p>Compare before and after above, then download when you're happy.</p>
         <a href="#" class="download-btn" id="downloadBtn" onclick="handleDownload(event)">
           ↓ Download Clean Audio
         </a>
@@ -1075,17 +1155,35 @@
   }
 
   function showDone() {
-    // Fake stats
-    const fillers = Math.floor(Math.random() * 60 + 20);
-    const silenceSecs = Math.floor(Math.random() * 180 + 30);
-    const sizePct = Math.floor(Math.random() * 20 + 8);
-    const mins = Math.floor(silenceSecs / 60);
-    const secs = silenceSecs % 60;
+    // Wire up before/after players with the original file
+    const url = URL.createObjectURL(currentFile);
+    const origPlayer = document.getElementById('audioOriginal');
+    const cleanPlayer = document.getElementById('audioCleaned');
+    origPlayer.src = url;
+    // Until real backend: cleaned = same file (placeholder)
+    cleanPlayer.src = url;
 
-    document.getElementById('statFillers').textContent = fillers;
-    document.getElementById('statSilence').textContent = mins + 'm ' + secs + 's';
-    document.getElementById('statSize').textContent = '-' + sizePct + '%';
+    // Pause one when the other plays
+    origPlayer.addEventListener('play', () => cleanPlayer.pause());
+    cleanPlayer.addEventListener('play', () => origPlayer.pause());
 
+    // Generate mini waveforms
+    ['origWave', 'cleanWave'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.innerHTML = '';
+      for (let j = 0; j < 40; j++) {
+        const bar = document.createElement('div');
+        bar.className = 'amw-bar';
+        const h = Math.random() * 24 + 4;
+        bar.style.height = h + 'px';
+        bar.style.background = i === 0
+          ? 'rgba(255,255,255,0.15)'
+          : `rgba(0,229,160,${0.2 + (h/28)*0.6})`;
+        el.appendChild(bar);
+      }
+    });
+
+    document.getElementById('comparePanel').classList.add('visible');
     document.getElementById('donePanel').classList.add('visible');
 
     // Add to history
@@ -1128,6 +1226,9 @@
     uploadZone.classList.remove('has-file');
     document.getElementById('processPanel').classList.remove('visible');
     document.getElementById('donePanel').classList.remove('visible');
+    document.getElementById('comparePanel').classList.remove('visible');
+    document.getElementById('audioOriginal').src = '';
+    document.getElementById('audioCleaned').src = '';
     document.getElementById('processBtn').disabled = true;
     document.getElementById('durationLabel').textContent = '—';
     fileInput.value = '';
