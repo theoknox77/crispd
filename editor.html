@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crispd — Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #13131a;
+    --bg3: #1a1a24;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.1);
+    --accent-glow: rgba(0,229,160,0.25);
+    --text: #f0f0f0;
+    --muted: #666;
+    --muted2: #444;
+    --border: rgba(255,255,255,0.07);
+    --border-accent: rgba(0,229,160,0.3);
+    --red: #ff4d4d;
+    --yellow: #f5a623;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Layout */
+  .app {
+    display: grid;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Top nav */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .nav-logo {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .nav-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+  }
+
+  .nav-user {
+    width: 30px;
+    height: 30px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  /* Main content */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    overflow: hidden;
+  }
+
+  /* Left — workspace */
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 24px;
+    gap: 20px;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--muted2);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg2);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .upload-zone.has-file {
+    border-color: var(--accent);
+    border-style: solid;
+    padding: 20px 32px;
+  }
+
+  .upload-icon {
+    width: 52px;
+    height: 52px;
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin: 0 auto 16px;
+  }
+
+  .upload-zone h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .upload-zone p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+  }
+
+  .upload-zone.has-file .upload-default { display: none; }
+  .upload-zone.has-file .file-info { display: flex; }
+
+  .file-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .file-meta strong {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .file-meta span { color: var(--muted); font-size: 0.8rem; }
+
+  .file-change {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .file-change:hover { border-color: var(--accent); color: var(--accent); }
+
+  input[type="file"] { display: none; }
+
+  /* Waveform preview */
+  .waveform-section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    flex-shrink: 0;
+  }
+
+  .waveform-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .waveform-label span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .waveform-label .duration { color: var(--accent); font-weight: 600; }
+
+  .waveform-vis {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 56px;
+    overflow: hidden;
+  }
+
+  .wv-bar {
+    flex: 1;
+    border-radius: 1px;
+    transition: background 0.3s;
+  }
+
+  /* Processing state */
+  .process-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    display: none;
+    flex-shrink: 0;
+  }
+
+  .process-panel.visible { display: block; }
+
+  .process-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .process-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .process-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .process-subtitle {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00ffcc);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .process-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .process-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+  }
+
+  .step-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--muted2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .process-step.done .step-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  .process-step.done .step-dot::after { content: '✓'; }
+
+  .process-step.active .step-dot {
+    border-color: var(--accent);
+    animation: pulse-dot 1s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+    50% { box-shadow: 0 0 0 4px transparent; }
+  }
+
+  .process-step.done span { color: var(--muted); text-decoration: line-through; }
+  .process-step.active span { color: var(--accent); }
+  .process-step span { color: var(--muted2); }
+
+  /* Done state */
+  .done-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border-accent);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: center;
+    display: none;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .done-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .done-panel.visible { display: block; }
+
+  .done-icon {
+    width: 56px;
+    height: 56px;
+    background: var(--accent-dim);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin: 0 auto 16px;
+  }
+
+  .done-panel h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .done-panel p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .done-stats {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .done-stat {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-align: center;
+  }
+
+  .done-stat strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .done-stat span {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.95rem;
+    font-weight: 800;
+    padding: 14px 32px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 24px var(--accent-glow);
+    text-decoration: none;
+  }
+
+  .download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 32px var(--accent-glow);
+  }
+
+  .process-again {
+    display: inline-flex;
+    margin-top: 12px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  /* Right sidebar */
+  .sidebar {
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .sidebar-section h3 {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* Toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .toggle-label {
+    font-size: 0.85rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .toggle-desc {
+    font-size: 0.74rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .toggle {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--muted2);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+  }
+
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+  /* Slider */
+  .slider-row {
+    margin-bottom: 14px;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .slider-header label { font-size: 0.85rem; color: var(--text); font-weight: 500; }
+  .slider-header .slider-val { font-size: 0.82rem; color: var(--accent); font-weight: 600; }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  /* Format selector */
+  .format-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .format-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 4px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+
+  .format-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--border-accent);
+    color: var(--accent);
+  }
+
+  /* Process button */
+  .process-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.95rem;
+    font-weight: 800;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    box-shadow: 0 0 20px var(--accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .process-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 28px var(--accent-glow);
+  }
+
+  .process-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* History */
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .history-item:hover { border-color: rgba(255,255,255,0.15); }
+
+  .history-thumb {
+    width: 32px;
+    height: 32px;
+    background: var(--accent-dim);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .history-meta strong {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  .history-meta span { font-size: 0.72rem; color: var(--muted); }
+
+  .history-dl {
+    margin-left: auto;
+    color: var(--accent);
+    font-size: 0.9rem;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  .history-item:hover .history-dl { opacity: 1; }
+
+  .empty-history {
+    text-align: center;
+    color: var(--muted2);
+    font-size: 0.8rem;
+    padding: 20px 0;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 2px; }
+
+  @media (max-width: 720px) {
+    main { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Nav -->
+  <nav>
+    <a href="index.html" style="text-decoration:none"><div class="nav-logo">Crispd</div></a>
+    <div class="nav-right">
+      <div class="nav-badge">✦ Unlimited</div>
+      <div class="nav-user">T</div>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Workspace -->
+    <div class="workspace">
+
+      <!-- Upload zone -->
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg">
+
+        <div class="upload-default">
+          <div class="upload-icon">🎙️</div>
+          <h2>Drop your audio file here</h2>
+          <p>MP3, WAV, M4A, AAC, FLAC supported &nbsp;·&nbsp; Any file size</p>
+          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            ↑ Choose File
+          </button>
+        </div>
+
+        <div class="file-info">
+          <div class="file-icon">🎙️</div>
+          <div class="file-meta">
+            <strong id="fileName">podcast-episode-42.mp3</strong>
+            <span id="fileSize">48.2 MB &nbsp;·&nbsp; MP3</span>
+          </div>
+          <button class="file-change" onclick="document.getElementById('fileInput').click()">Change</button>
+        </div>
+      </div>
+
+      <!-- Waveform -->
+      <div class="waveform-section" id="waveformSection">
+        <div class="waveform-label">
+          <span>Waveform Preview</span>
+          <span class="duration" id="durationLabel">—</span>
+        </div>
+        <div class="waveform-vis" id="waveformVis"></div>
+      </div>
+
+      <!-- Processing -->
+      <div class="process-panel" id="processPanel">
+        <div class="process-header">
+          <div class="process-spinner" id="processSpinner"></div>
+          <div class="process-title" id="processTitle">Analyzing your audio...</div>
+          <div class="process-subtitle" id="processSubtitle">0%</div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="process-steps">
+          <div class="process-step" id="step1">
+            <div class="step-dot"></div>
+            <span>Uploading file</span>
+          </div>
+          <div class="process-step" id="step2">
+            <div class="step-dot"></div>
+            <span>Transcribing with Whisper AI</span>
+          </div>
+          <div class="process-step" id="step3">
+            <div class="step-dot"></div>
+            <span>Detecting filler words</span>
+          </div>
+          <div class="process-step" id="step4">
+            <div class="step-dot"></div>
+            <span>Trimming silences</span>
+          </div>
+          <div class="process-step" id="step5">
+            <div class="step-dot"></div>
+            <span>Noise reduction + leveling</span>
+          </div>
+          <div class="process-step" id="step6">
+            <div class="step-dot"></div>
+            <span>Exporting clean audio</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Done -->
+      <div class="done-panel" id="donePanel">
+        <div class="done-icon">✓</div>
+        <h3>Your audio is ready</h3>
+        <p>Clean, broadcast-ready audio — processed and waiting.</p>
+        <div class="done-stats">
+          <div class="done-stat">
+            <strong id="statFillers">—</strong>
+            <span>Fillers removed</span>
+          </div>
+          <div class="done-stat">
+            <strong id="statSilence">—</strong>
+            <span>Silence cut</span>
+          </div>
+          <div class="done-stat">
+            <strong id="statSize">—</strong>
+            <span>Size saved</span>
+          </div>
+        </div>
+        <a href="#" class="download-btn" id="downloadBtn">
+          ↓ Download Clean Audio
+        </a>
+        <br>
+        <button class="process-again" onclick="resetEditor()">Process another file</button>
+      </div>
+
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Settings -->
+      <div class="sidebar-section">
+        <h3>Cleaning Settings</h3>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Remove Filler Words</div>
+            <div class="toggle-desc">um, uh, like, you know, sort of</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked id="toggleFillers">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Trim Silences</div>
+            <div class="toggle-desc">Cut pauses longer than threshold</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked id="toggleSilence">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Noise Reduction</div>
+            <div class="toggle-desc">Remove background hum & echo</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked id="toggleNoise">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Volume Leveling</div>
+            <div class="toggle-desc">Normalize loudness across speakers</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked id="toggleLevel">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Tuning -->
+      <div class="sidebar-section">
+        <h3>Fine Tuning</h3>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <label>Silence threshold</label>
+            <span class="slider-val" id="silenceVal">0.8s</span>
+          </div>
+          <input type="range" min="3" max="20" value="8" oninput="document.getElementById('silenceVal').textContent=(this.value/10).toFixed(1)+'s'">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <label>Filler aggressiveness</label>
+            <span class="slider-val" id="fillerVal">Medium</span>
+          </div>
+          <input type="range" min="1" max="3" value="2" oninput="document.getElementById('fillerVal').textContent=['','Low','Medium','High'][this.value]">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <label>Noise reduction</label>
+            <span class="slider-val" id="noiseVal">60%</span>
+          </div>
+          <input type="range" min="0" max="100" value="60" oninput="document.getElementById('noiseVal').textContent=this.value+'%'">
+        </div>
+      </div>
+
+      <!-- Output format -->
+      <div class="sidebar-section">
+        <h3>Output Format</h3>
+        <div class="format-grid">
+          <div class="format-btn active" onclick="selectFormat(this)">MP3</div>
+          <div class="format-btn" onclick="selectFormat(this)">WAV</div>
+          <div class="format-btn" onclick="selectFormat(this)">M4A</div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <label>Bitrate</label>
+            <span class="slider-val" id="bitrateVal">192 kbps</span>
+          </div>
+          <input type="range" min="0" max="3" value="2" oninput="document.getElementById('bitrateVal').textContent=['96 kbps','128 kbps','192 kbps','320 kbps'][this.value]">
+        </div>
+      </div>
+
+      <!-- Process button -->
+      <button class="process-btn" id="processBtn" disabled onclick="startProcessing()">
+        ✦ Clean My Audio
+      </button>
+
+      <!-- History -->
+      <div class="sidebar-section">
+        <h3>Recent Files</h3>
+        <div id="historyList">
+          <div class="empty-history">No files processed yet.<br>Your history will appear here.</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // Generate waveform bars
+  const waveVis = document.getElementById('waveformVis');
+  for (let i = 0; i < 80; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'wv-bar';
+    const h = Math.random() * 48 + 4;
+    bar.style.height = h + 'px';
+    bar.style.background = 'rgba(255,255,255,0.08)';
+    waveVis.appendChild(bar);
+  }
+
+  // File input
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  uploadZone.addEventListener('click', e => {
+    if (e.target.classList.contains('file-change') || !uploadZone.classList.contains('has-file')) return;
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+  let currentFile = null;
+
+  function handleFile(file) {
+    currentFile = file;
+    uploadZone.classList.add('has-file');
+    document.getElementById('fileName').textContent = file.name;
+    const mb = (file.size / 1048576).toFixed(1);
+    const ext = file.name.split('.').pop().toUpperCase();
+    document.getElementById('fileSize').textContent = mb + ' MB · ' + ext;
+
+    // Animate waveform to simulate loading
+    document.getElementById('durationLabel').textContent = 'Analyzing...';
+    const bars = waveVis.querySelectorAll('.wv-bar');
+    bars.forEach((bar, i) => {
+      setTimeout(() => {
+        const h = Math.random() * 52 + 4;
+        bar.style.height = h + 'px';
+        const intensity = h / 56;
+        bar.style.background = `rgba(0, 229, 160, ${0.2 + intensity * 0.6})`;
+      }, i * 8);
+    });
+    setTimeout(() => {
+      // Fake duration based on file size (rough estimate)
+      const mins = Math.floor(file.size / 1048576 / 1.2);
+      const secs = Math.floor(Math.random() * 59);
+      document.getElementById('durationLabel').textContent = `${mins}m ${secs}s`;
+    }, 800);
+
+    document.getElementById('processBtn').disabled = false;
+
+    // Hide done/process panels if re-uploading
+    document.getElementById('processPanel').classList.remove('visible');
+    document.getElementById('donePanel').classList.remove('visible');
+  }
+
+  function selectFormat(el) {
+    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function startProcessing() {
+    if (!currentFile) return;
+
+    document.getElementById('processPanel').classList.add('visible');
+    document.getElementById('donePanel').classList.remove('visible');
+    document.getElementById('processBtn').disabled = true;
+
+    const steps = ['step1','step2','step3','step4','step5','step6'];
+    const labels = [
+      'Uploading file...',
+      'Transcribing with Whisper AI...',
+      'Detecting filler words...',
+      'Trimming silences...',
+      'Noise reduction + leveling...',
+      'Exporting clean audio...'
+    ];
+    const durations = [800, 2200, 1800, 1400, 1600, 1200];
+    let elapsed = 0;
+    let totalTime = durations.reduce((a,b) => a+b, 0);
+    let stepStart = 0;
+
+    steps.forEach((id, i) => {
+      const delay = durations.slice(0, i).reduce((a,b) => a+b, 0);
+      setTimeout(() => {
+        // Mark previous as done
+        if (i > 0) document.getElementById(steps[i-1]).className = 'process-step done';
+        document.getElementById(id).className = 'process-step active';
+        document.getElementById('processTitle').textContent = labels[i];
+        stepStart = delay;
+      }, delay);
+    });
+
+    // Progress bar
+    const fillEl = document.getElementById('progressFill');
+    const subtitleEl = document.getElementById('processSubtitle');
+    const startTime = Date.now();
+
+    const timer = setInterval(() => {
+      const pct = Math.min((Date.now() - startTime) / totalTime * 100, 99);
+      fillEl.style.width = pct + '%';
+      subtitleEl.textContent = Math.floor(pct) + '%';
+    }, 80);
+
+    setTimeout(() => {
+      clearInterval(timer);
+      fillEl.style.width = '100%';
+      subtitleEl.textContent = '100%';
+      document.getElementById(steps[steps.length-1]).className = 'process-step done';
+
+      setTimeout(() => {
+        document.getElementById('processPanel').classList.remove('visible');
+        showDone();
+      }, 400);
+    }, totalTime);
+  }
+
+  function showDone() {
+    // Fake stats
+    const fillers = Math.floor(Math.random() * 60 + 20);
+    const silenceSecs = Math.floor(Math.random() * 180 + 30);
+    const sizePct = Math.floor(Math.random() * 20 + 8);
+    const mins = Math.floor(silenceSecs / 60);
+    const secs = silenceSecs % 60;
+
+    document.getElementById('statFillers').textContent = fillers;
+    document.getElementById('statSilence').textContent = mins + 'm ' + secs + 's';
+    document.getElementById('statSize').textContent = '-' + sizePct + '%';
+
+    document.getElementById('donePanel').classList.add('visible');
+
+    // Add to history
+    addHistory(currentFile.name, (currentFile.size / 1048576).toFixed(1) + ' MB');
+  }
+
+  function addHistory(name, size) {
+    const list = document.getElementById('historyList');
+    const empty = list.querySelector('.empty-history');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <div class="history-thumb">🎙️</div>
+      <div class="history-meta">
+        <strong>${name.length > 22 ? name.substring(0,22)+'...' : name}</strong>
+        <span>${size} · Just now</span>
+      </div>
+      <div class="history-dl">↓</div>
+    `;
+    list.prepend(item);
+  }
+
+  function resetEditor() {
+    currentFile = null;
+    uploadZone.classList.remove('has-file');
+    document.getElementById('processPanel').classList.remove('visible');
+    document.getElementById('donePanel').classList.remove('visible');
+    document.getElementById('processBtn').disabled = true;
+    document.getElementById('durationLabel').textContent = '—';
+    fileInput.value = '';
+    const bars = waveVis.querySelectorAll('.wv-bar');
+    bars.forEach(bar => {
+      bar.style.height = (Math.random() * 48 + 4) + 'px';
+      bar.style.background = 'rgba(255,255,255,0.08)';
+    });
+  }
+</script>
+</body>
+</html>
