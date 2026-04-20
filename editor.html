@@ -826,7 +826,7 @@
             <span>Size saved</span>
           </div>
         </div>
-        <a href="#" class="download-btn" id="downloadBtn">
+        <a href="#" class="download-btn" id="downloadBtn" onclick="handleDownload(event)">
           ↓ Download Clean Audio
         </a>
         <br>
@@ -1108,6 +1108,19 @@
       <div class="history-dl">↓</div>
     `;
     list.prepend(item);
+  }
+
+  function handleDownload(e) {
+    e.preventDefault();
+    if (!currentFile) return;
+    // Until backend is live, download the original file back as a placeholder
+    const url = URL.createObjectURL(currentFile);
+    const a = document.createElement('a');
+    const cleanName = currentFile.name.replace(/\.([^.]+)$/, '_crispd.$1');
+    a.href = url;
+    a.download = cleanName;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function resetEditor() {
